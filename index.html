@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo de Implementación DXP AEM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EEF0F4;
+    --surface: #FFFFFF;
+    --surface2: #E2E8F0;
+    --border: #E2E8F0;
+    --accent: #4f8eff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --text: #0F172A;
+    --muted: #E2E8F0;
+    --glow: rgba(79,142,255,0.15);
+    --c0: #a78bfa;
+    --c1: #4f8eff;
+    --c2: #00d4aa;
+    --c3: #f59e0b;
+    --c4: #ff6b6b;
+    --c5: #ec4899;
+    --c6: #10b981;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 100px; }
+  header { padding: 72px 0 56px; text-align: center; position: relative; }
+  .header-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(79,142,255,0.1); border: 1px solid rgba(79,142,255,0.25);
+    border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px;
+  }
+  .header-badge .dot {
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+  h1 {
+    font-family: 'Syne', sans-serif; font-size: clamp(32px, 5vw, 56px); font-weight: 800;
+    line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 16px; color: #6ab1d5;
+  }
+  h1 span {
+    background: linear-gradient(135deg, #4f8eff, #00d4aa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { color: #4d8eaf; font-size: 16px; max-width: 480px; margin: 0 auto 48px; line-height: 1.6; font-weight: 300; }
+  .progress-container {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 20px 28px; margin-bottom: 48px; display: flex; align-items: center; gap: 20px;
+  }
+  .progress-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .progress-bar-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 100px; overflow: hidden; }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #4f8eff, #00d4aa);
+    border-radius: 100px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); width: 0%;
+  }
+  .progress-count { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .timeline { position: relative; }
+  .timeline::before {
+    content: ''; position: absolute; left: 39px; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--border) 5%, var(--border) 95%, transparent);
+  }
+  .phase {
+    display: grid; grid-template-columns: 80px 1fr; gap: 0 24px; margin-bottom: 16px;
+    opacity: 0; transform: translateY(20px); animation: fadeUp 0.5s ease forwards;
+  }
+  .phase:nth-child(1) { animation-delay: 0.05s; }
+  .phase:nth-child(2) { animation-delay: 0.1s; }
+  .phase:nth-child(3) { animation-delay: 0.15s; }
+  .phase:nth-child(4) { animation-delay: 0.2s; }
+  .phase:nth-child(5) { animation-delay: 0.25s; }
+  .phase:nth-child(6) { animation-delay: 0.3s; }
+  .phase:nth-child(7) { animation-delay: 0.35s; }
+  @keyframes fadeUp { to { opacity: 1; transform: none; } }
+  .phase-node { display: flex; flex-direction: column; align-items: center; padding-top: 24px; }
+  .node-circle {
+    width: 52px; height: 52px; border-radius: 50%; border: 2px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px;
+    position: relative; transition: all 0.3s ease; cursor: pointer; flex-shrink: 0;
+  }
+  .node-circle::after {
+    content: ''; position: absolute; inset: -6px; border-radius: 50%;
+    border: 1px solid; opacity: 0; transition: all 0.3s ease;
+  }
+  .phase:hover .node-circle::after, .phase.active .node-circle::after { opacity: 0.4; inset: -8px; }
+  .node-check { display: none; font-size: 18px; }
+  .phase.done .node-circle .node-num { display: none; }
+  .phase.done .node-circle .node-check { display: block; }
+  .phase-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; transition: border-color 0.3s ease, box-shadow 0.3s ease; cursor: pointer;
+  }
+  .phase:hover .phase-card, .phase.active .phase-card {
+    box-shadow: 0 0 0 1px var(--phase-color, var(--accent)), 0 8px 40px rgba(0,0,0,0.4);
+  }
+  .phase.active .phase-card { border-color: var(--phase-color, var(--accent)); }
+  .phase-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .phase-title-group { display: flex; align-items: center; gap: 14px; }
+  .phase-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .phase-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; line-height: 1.2; color: #0F172A; }
+  .phase-sub { font-size: 12px; color: #64748B; margin-top: 2px; }
+  .phase-toggle { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .tag-count { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 100px; background: #64748B; color: var(--muted); border: 1px solid var(--border); }
+  .chevron { width: 28px; height: 28px; background: var(--surface2); border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease, background 0.3s; color: #48779b; font-size: 12px; }
+  .phase.active .chevron { transform: rotate(180deg); background: var(--phase-color, var(--accent)); color: #fff; }
+  .phase-content { max-height: 0; overflow: hidden; transition: max-height 0.45s cubic-bezier(0.4,0,0.2,1); }
+  .phase.active .phase-content { max-height: 4000px; }
+  .content-inner { padding: 24px 24px 24px; border-top: 1px solid var(--border); }
+  .section-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; color: #8cafdc; margin: 20px 0 12px; }
+  .subsection { background: var(--surface2); border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 3px solid var(--phase-color, var(--accent)); }
+  .subsection-title { font-weight: 600; font-size: 13px; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .items-grid { counter-reset: item; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .items-grid.single { grid-template-columns: 1fr; }
+  .item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    background: var(--surface2); border-radius: 10px; border: 1px solid transparent;
+    transition: all 0.2s ease; font-size: 13.5px; line-height: 1.4; counter-increment: item;
+  }
+  .item:hover { border-color: var(--phase-color, var(--accent)); transform: translateX(2px); }
+  .item-dot {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--phase-color, var(--accent));
+    color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; margin-top: 2px; flex-shrink: 0;
+  }
+  .item-dot::before { content: counter(item); }
+
+  /* ── DELIVERABLES ── */
+  .deliverables-list { display: flex; flex-direction: column; gap: 8px; counter-reset: deliverable; }
+
+  .deliverable {
+    border-radius: 10px; border: 1px solid var(--border); background: #E2E8F0;
+    overflow: hidden; counter-increment: deliverable; transition: border-color 0.2s ease;
+  }
+  .deliverable:hover { border-color: var(--phase-color, var(--accent)); }
+
+  .deliverable-header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    cursor: pointer; user-select: none;
+  }
+
+  .del-icon {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--phase-color, var(--accent));
+    color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
+  }
+  .del-icon::before { content: counter(deliverable); }
+
+  .del-text { flex: 1; font-size: 13.5px; }
+  .del-asterisk { color: var(--muted); font-size: 11px; }
+
+  .del-chevron {
+    width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #64748B; flex-shrink: 0;
+    transition: transform 0.25s ease, background 0.25s ease;
+  }
+  .deliverable.open .del-chevron {
+    transform: rotate(180deg); background: var(--phase-color, var(--accent)); color: #fff;
+  }
+
+  .del-dropdown { max-height: 0; overflow: hidden; transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1); }
+  .deliverable.open .del-dropdown { max-height: 400px; }
+
+  .del-dropdown-inner {
+    padding: 12px 14px 14px 54px; border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+  }
+  .del-field { display: flex; flex-direction: column; gap: 5px; }
+  .del-field-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #355987; }
+  .del-field-input {
+    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; outline: none; resize: none; transition: border-color 0.2s;
+    line-height: 1.5; min-height: 64px;
+  }
+
+  .del-field-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  line-height: 1.5;
+}
+
+  .del-field-input:focus { border-color: var(--phase-color, var(--accent)); }
+  .del-field-input.owner { min-height: unset; height: 36px; }
+  .done-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+    border-radius: 100px; font-size: 11px; font-weight: 600;
+    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); color: var(--accent2);
+  }
+  .subphase { margin-bottom: 20px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .subphase-title {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    padding: 12px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .subphase-body { padding: 16px; }
+  .mark-done-btn {
+    margin-top: 20px; width: 100%; padding: 10px; border-radius: 10px;
+    border: 1px solid var(--phase-color, var(--accent)); background: transparent;
+    color: var(--phase-color, var(--accent)); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .mark-done-btn:hover { background: var(--phase-color, var(--accent)); color: #000; }
+  .phase.done .mark-done-btn { opacity: 0.5; cursor: default; }
+  .phase.done .mark-done-btn:hover { background: transparent; color: var(--phase-color, var(--accent)); }
+
+  .tabs-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  color: #64748B;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: var(--phase-color, var(--accent));
+  color: #fff;
+  border-color: var(--phase-color, var(--accent));
+}
+
+.tabs-content {
+  display: none;
+}
+
+.tabs-content.active {
+  display: block;
+}
+
+  .color-0 { --phase-color: var(--c0); }
+  .color-1 { --phase-color: var(--c1); }
+  .color-2 { --phase-color: var(--c2); }
+  .color-3 { --phase-color: var(--c3); }
+  .color-4 { --phase-color: var(--c4); }
+  .color-5 { --phase-color: var(--c5); }
+  .color-6 { --phase-color: var(--c6); }
+
+  @media (max-width: 640px) {
+    .items-grid { grid-template-columns: 1fr; }
+    .timeline::before { left: 26px; }
+    .phase { grid-template-columns: 56px 1fr; }
+    .node-circle { width: 40px; height: 40px; font-size: 12px; }
+    .del-dropdown-inner { grid-template-columns: 1fr; padding-left: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="header-badge"><span class="dot"></span> Proyecto Activo</div>
+    <h1>Flujo de Implementación<br><span>DXP AEM</span></h1>
+    <p class="subtitle">Haz clic en cada fase para explorar su ejecución, entregables y detalles del proyecto.</p>
+  </header>
+
+  <div class="progress-container">
+    <span class="progress-label">Progreso general</span>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+    <span class="progress-count" id="progressCount">0 / 7 fases</span>
+  </div>
+
+  <div class="timeline" id="timeline">
+
+    <!-- FASE 0 -->
+    <div class="phase color-0" data-phase="0">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c0);color:var(--c0);background:rgba(167,139,250,0.08)">
+          <span class="node-num">0</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(167,139,250,0.12);color:var(--c0)">🔍</div>
+            <div>
+              <div class="phase-name">Fase 0 — Pre Kick-off</div>
+              <div class="phase-sub">Análisis inicial y preparación</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">1 entregable</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+            <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Revisión inicial: análisis del one pager y documentos de hand-off</div>
+              <div class="item"><div class="item-dot"></div>Contexto del cliente: exploración de productos, servicios y necesidades</div>
+              <div class="item"><div class="item-dot"></div>Definición inicial: aterrizaje de requerimientos y visión to-be</div>
+            </div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Presentación de kick-off para cliente (V1)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+<div class="del-field">
+ <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Content Manager
+  </div>
+</div>
+</div>
+                </div></div>
+              </div>
+            </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 1 -->
+    <div class="phase color-1" data-phase="1">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c1);color:var(--c1);background:rgba(79,142,255,0.08)">
+          <span class="node-num">1</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(79,142,255,0.12);color:var(--c1)">🚀</div>
+            <div>
+              <div class="phase-name">Fase 1 — Kick-off</div>
+              <div class="phase-sub">Arranque formal del proyecto</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">5 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+            <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Identificar stakeholders clave y responsables por frente/fase</div>
+              <div class="item"><div class="item-dot"></div>Identificación de posibles riesgos del proyecto</div>
+              <div class="item"><div class="item-dot"></div>Ajustes: validación y refinamiento posterior al kick-off</div>
+              <div class="item"><div class="item-dot"></div>Aterrizaje de presentación post-kickoff</div>
+              <div class="item"><div class="item-dot"></div>Analizar necesidad de kick-off técnico*</div>
+            </div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Presentación kick-off técnico <span class="del-asterisk">*</span></div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+                  <div class="del-field">
+ <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">PPT Resultados del kick-off</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Plan de trabajo (alto nivel)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Metodología de la fase de discovery</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de riesgos V1</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 2 -->
+    <div class="phase color-2" data-phase="2">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c2);color:var(--c2);background:rgba(0,212,170,0.08)">
+          <span class="node-num">2</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(0,212,170,0.12);color:var(--c2)">🔬</div>
+            <div>
+              <div class="phase-name">Fase 2 — Discovery</div>
+              <div class="phase-sub">Análisis del ecosistema digital</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">6 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Análisis del ecosistema digital y definición de preguntas clave para Discovery.</p>
+            <div class="section-label">Ejecución</div>
+            <div class="subsection">
+              <div class="subsection-title">🌐 Discovery General</div>
+              <div class="items-grid single">
+                <div class="item"><div class="item-dot"></div>Alineación estratégica</div>
+                <div class="item"><div class="item-dot"></div>Identificación de necesidades y expectativas</div>
+                <div class="item"><div class="item-dot"></div>Solicitud de insumos y tiempos de entrega</div>
+              </div>
+            </div>
+            <div class="subsection">
+              <div class="subsection-title">⚙️ Discovery Funcional</div>
+              <div class="items-grid single">
+                <div class="item"><div class="item-dot"></div>Entendimiento de procesos</div>
+                <div class="item"><div class="item-dot"></div>Identificación de necesidades</div>
+                <div class="item"><div class="item-dot"></div>Oportunidades de mejora</div>
+                <div class="item"><div class="item-dot"></div>Solicitud de insumos y tiempos de entrega</div>
+              </div>
+            </div>
+            <div class="subsection">
+              <div class="subsection-title">🔧 Discovery Técnico</div>
+              <div class="items-grid single">
+                <div class="item"><div class="item-dot"></div>Análisis del entorno técnico</div>
+                <div class="item"><div class="item-dot"></div>Planeación de una migración eficiente</div>
+                <div class="item"><div class="item-dot"></div>Solicitud de insumos y tiempos de entrega</div>
+              </div>
+            </div>
+            <div class="item" style="margin-bottom:16px;border:1px solid rgba(0,212,170,0.2)"><div class="item-dot"></div>Dailys CX (revisión de avance del proyecto)</div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Documento de auditoría de contenido AS-IS</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de propiedades</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Mapa de integraciones (APIs, endpoints, CRM, entre otros)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de componentes</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Diagnóstico AS-IS SEO (Core Web Vitals)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Documento de resultados – cierre del discovery AS-IS</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 3 -->
+    <div class="phase color-3" data-phase="3">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c3);color:var(--c3);background:rgba(245,158,11,0.08)">
+          <span class="node-num">3</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(245,158,11,0.12);color:var(--c3)">🎨</div>
+            <div>
+              <div class="phase-name">Fase 3 — Diseño</div>
+              <div class="phase-sub">UI/UX, sistema de diseño y arquitectura</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">8 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+
+  <!-- 🔹 Tabs -->
+  <div class="tabs-header">
+    <button class="tab-btn active" data-tab="esc1">Escenario 1</button>
+    <button class="tab-btn" data-tab="esc2">Escenario 2</button>
+    <button class="tab-btn" data-tab="esc3">Escenario 3</button>
+  </div>
+
+  <!-- 🔹 Escenario 1 -->
+  <div class="tabs-content active" data-content="esc1">
+            <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Aprobación de matriz de componentes</div>
+              <div class="item"><div class="item-dot"></div>Revisión de matriz y estimación (UI/UX)</div>
+              <div class="item"><div class="item-dot"></div>Definición del sistema de diseño</div>
+              <div class="item"><div class="item-dot"></div>Diseño UI de componentes</div>
+              <div class="item"><div class="item-dot"></div>Modelo de datos de componentes</div>
+              <div class="item"><div class="item-dot"></div>Definición de casos de uso (testing)</div>
+              <div class="item"><div class="item-dot"></div>Handover a desarrollo</div>
+              <div class="item"><div class="item-dot"></div>Definición metodología de desarrollo</div>
+              <div class="item"><div class="item-dot"></div>Definición de roles y permisos</div>
+              <div class="item"><div class="item-dot"></div>Modelo AEM + contenido + SEO</div>
+              <div class="item"><div class="item-dot"></div>Estrategia de migración</div>
+              <div class="item"><div class="item-dot"></div>Estrategia de assets</div>
+            </div>
+            <div class="item" style="margin:12px 0;border:1px solid rgba(245,158,11,0.2)"><div class="item-dot"></div>Dailys CX (revisión de avance del proyecto)</div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Figma (sistema de diseño y componentes)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de datos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Casos de uso</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de roles y permisos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de contenido</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de migración</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia SEO</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de assets</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+              </div> <!-- cierre esc1 -->
+
+  <!-- 🔹 Escenario 2 -->
+  <div class="tabs-content" data-content="esc2">
+  <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Aprobación de matriz de componentes</div>
+              <div class="item"><div class="item-dot"></div>Revisión de matriz y estimación (UI/UX)</div>
+              <div class="item"><div class="item-dot"></div>Definición del sistema de diseño</div>
+              <div class="item"><div class="item-dot"></div>Estrategia de migración</div>
+              <div class="item"><div class="item-dot"></div>Estrategia de assets</div>
+            </div>
+            <div class="item" style="margin:12px 0;border:1px solid rgba(245,158,11,0.2)"><div class="item-dot"></div>Dailys CX (revisión de avance del proyecto)</div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Figma (sistema de diseño y componentes)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de datos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Casos de uso</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de roles y permisos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de contenido</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de migración</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia SEO</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de assets</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+  </div>
+
+  <!-- 🔹 Escenario 3 -->
+  <div class="tabs-content" data-content="esc3">
+    <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Revisión de matriz y estimación (UI/UX)</div>
+              <div class="item"><div class="item-dot"></div>Definición del sistema de diseño</div>
+              <div class="item"><div class="item-dot"></div>Diseño UI de componentes</div>
+              <div class="item"><div class="item-dot"></div>Modelo de datos de componentes</div>
+              <div class="item"><div class="item-dot"></div>Definición de casos de uso (testing)</div>
+              <div class="item"><div class="item-dot"></div>Definición metodología de desarrollo</div>
+              <div class="item"><div class="item-dot"></div>Definición de roles y permisos</div>
+              <div class="item"><div class="item-dot"></div>Modelo AEM + contenido + SEO</div>
+              <div class="item"><div class="item-dot"></div>Estrategia de migración</div>
+            </div>
+            <div class="item" style="margin:12px 0;border:1px solid rgba(245,158,11,0.2)"><div class="item-dot"></div>Dailys CX (revisión de avance del proyecto)</div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Figma (sistema de diseño y componentes)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de datos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Casos de uso</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Matriz de roles y permisos</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de contenido</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia de migración</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Estrategia SEO</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Modelo de assets</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+  </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 4 -->
+    <div class="phase color-4" data-phase="4">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c4);color:var(--c4);background:rgba(255,107,107,0.08)">
+          <span class="node-num">4</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(255,107,107,0.12);color:var(--c4)">💻</div>
+            <div>
+              <div class="phase-name">Fase 4 — Desarrollo</div>
+              <div class="phase-sub">Implementación técnica en AEM</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">4 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+            <div class="section-label">Ejecución</div>
+            <div class="items-grid">
+              <div class="item"><div class="item-dot"></div>Aprobación de Figma</div>
+              <div class="item"><div class="item-dot"></div>Desarrollo del sistema de diseño</div>
+              <div class="item"><div class="item-dot"></div>Desarrollo de bloques en AEM</div>
+              <div class="item"><div class="item-dot"></div>Documentación funcional y técnica de componentes</div>
+              <div class="item"><div class="item-dot"></div>Creación plan de trabajo V2 detallado por componentes</div>
+              <div class="item"><div class="item-dot"></div>Seguimiento iterativo</div>
+              <div class="item"><div class="item-dot"></div>Dailys CX (revisión de avance del proyecto)</div>
+              <div class="item"><div class="item-dot"></div>Dailys DXP (resolución de dudas y bloqueos)</div>
+            </div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Sistema de diseño implementado</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Bloques desarrollados en AEM</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Documentación de componentes (funcional y técnica)</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Plan de trabajo detallado y actualizado</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 5 -->
+    <div class="phase color-5" data-phase="5">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c5);color:var(--c5);background:rgba(236,72,153,0.08)">
+          <span class="node-num">5</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(236,72,153,0.12);color:var(--c5)">🧪</div>
+            <div>
+              <div class="phase-name">Fase 5 — QA</div>
+              <div class="phase-sub">Quality Assurance y validación</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">2 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+            <div class="section-label">Ejecución</div>
+            <div class="items-grid single">
+              <div class="item"><div class="item-dot"></div>Revisión de casos de uso</div>
+              <div class="item"><div class="item-dot"></div>Touchpoints con QA</div>
+            </div>
+            <div class="section-label">Entregables</div>
+            <div class="deliverables-list">
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Casos de uso validados</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+              <div class="deliverable">
+                <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                  <div class="del-icon"></div><div class="del-text">Aprobación de QA y feedback de validación</div><div class="del-chevron">▾</div>
+                </div>
+                <div class="del-dropdown"><div class="del-dropdown-inner">
+               <div class="del-field">
+  <div class="del-field-label">Descripción</div>
+  <div class="del-field-text">
+    Aquí defines la descripción directamente en el código.
+  </div>
+</div>
+
+<div class="del-field">
+  <div class="del-field-label">Owner</div>
+  <div class="del-field-text owner">
+    Equipo responsable
+  </div>
+</div>
+                </div></div>
+              </div>
+            </div>
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FASE 6 -->
+    <div class="phase color-6" data-phase="6">
+      <div class="phase-node">
+        <div class="node-circle" style="border-color:var(--c6);color:var(--c6);background:rgba(16,185,129,0.08)">
+          <span class="node-num">6</span><span class="node-check">✓</span>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header" onclick="togglePhase(this)">
+          <div class="phase-title-group">
+            <div class="phase-icon" style="background:rgba(16,185,129,0.12);color:var(--c6)">🚀</div>
+            <div>
+              <div class="phase-name">Fase 6 — Salida a Producción y Soporte</div>
+              <div class="phase-sub">UAT · Go Live · Hypercare</div>
+            </div>
+          </div>
+          <div class="phase-toggle">
+            <span class="tag-count">7 entregables</span>
+            <div class="chevron">▾</div>
+          </div>
+        </div>
+        <div class="phase-content">
+          <div class="content-inner">
+
+            <div class="subphase">
+              <div class="subphase-title">🧑‍💻 UAT — User Acceptance Testing</div>
+              <div class="subphase-body">
+                <div class="section-label">Ejecución</div>
+                <div class="items-grid single">
+                  <div class="item"><div class="item-dot"></div>Plan de pruebas</div>
+                  <div class="item"><div class="item-dot"></div>Ejecución de pruebas UAT</div>
+                  <div class="item"><div class="item-dot"></div>Corrección de errores (bug fixing)</div>
+                </div>
+                <div class="section-label">Entregables</div>
+                <div class="deliverables-list">
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Plan de pruebas definido</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Resultados de UAT</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Ajustes y correcciones implementadas</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="subphase">
+              <div class="subphase-title">🟢 Go Live</div>
+              <div class="subphase-body">
+                <div class="section-label">Ejecución</div>
+                <div class="items-grid single">
+                  <div class="item"><div class="item-dot"></div>Plan de salida a producción</div>
+                </div>
+                <div class="section-label">Entregables</div>
+                <div class="deliverables-list">
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Despliegue en producción</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="subphase">
+              <div class="subphase-title">🛡️ Hypercare — Estabilización</div>
+              <div class="subphase-body">
+                <div class="section-label">Ejecución</div>
+                <div class="items-grid single">
+                  <div class="item"><div class="item-dot"></div>Corrección de errores (bug fixing)</div>
+                </div>
+                <div class="section-label">Entregables</div>
+                <div class="deliverables-list">
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Incidencias resueltas</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                  <div class="deliverable">
+                    <div class="deliverable-header" onclick="toggleDeliverable(this)">
+                      <div class="del-icon"></div><div class="del-text">Estabilización post-lanzamiento</div><div class="del-chevron">▾</div>
+                    </div>
+                    <div class="del-dropdown"><div class="del-dropdown-inner">
+                      <div class="del-field"><div class="del-field-label">Descripción</div><textarea class="del-field-input" placeholder="Agrega una descripción..."></textarea></div>
+                      <div class="del-field"><div class="del-field-label">Owner</div><textarea class="del-field-input owner" placeholder="Responsable..."></textarea></div>
+                    </div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button class="mark-done-btn" onclick="markDone(this)">✓ Marcar como completada</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // 🔹 Toggle fases
+  function togglePhase(headerEl) {
+    const phase = headerEl.closest('.phase');
+    const isActive = phase.classList.contains('active');
+
+    document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+    if (!isActive) phase.classList.add('active');
+
+    updateProgress();
+  }
+
+  // 🔹 Toggle deliverables
+  function toggleDeliverable(headerEl) {
+    const deliverable = headerEl.closest('.deliverable');
+    deliverable.classList.toggle('open');
+  }
+
+  // 🔹 Marcar como completado
+  function markDone(btn) {
+    const phase = btn.closest('.phase');
+    if (phase.classList.contains('done')) return;
+
+    phase.classList.add('done');
+    btn.textContent = '✓ Fase completada';
+
+    updateProgress();
+  }
+
+  // 🔹 Progreso
+  function updateProgress() {
+    const total = document.querySelectorAll('.phase').length;
+    const done = document.querySelectorAll('.phase.done').length;
+    const pct = (done / total) * 100;
+
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressCount').textContent =
+      done + ' / ' + total + ' fases';
+  }
+
+  // 🔥 Tabs SOLO para Fase 3
+  function initTabs() {
+    const phase3 = document.querySelector('.phase[data-phase="3"]');
+    if (!phase3) return;
+
+    const tabs = phase3.querySelectorAll('.tab-btn');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+
+        // activar botón
+        phase3.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // cambiar contenido
+        phase3.querySelectorAll('.tabs-content').forEach(c => {
+          c.classList.remove('active');
+        });
+
+        const activeContent = phase3.querySelector(`[data-content="${target}"]`);
+        if (activeContent) activeContent.classList.add('active');
+      });
+    });
+  }
+
+  // 🔹 Init
+  document.addEventListener("DOMContentLoaded", () => {
+    initTabs();
+
+    // abrir primera fase automáticamente
+    setTimeout(() => {
+      const firstPhase = document.querySelector('.phase');
+      if (firstPhase) firstPhase.classList.add('active');
+    }, 600);
+  });
+</script>
+</body>
+</html>
